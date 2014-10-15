@@ -1,0 +1,12 @@
+<% model = @instance.class %>
+
+<p id="notice"><%= notice %></p>
+
+<% @instance.attribute_names.each do |attr| %>
+	<p>
+	  <strong><%= model.human_attribute_name(attr)%></strong>
+	  <%= @instance[attr] %>
+	</p>
+<% end %>
+<%= link_to 'Edit', "/#{model.model_name.route_key}/#{@instance.id}/edit" %> |
+<%= link_to 'Back', "/#{model.model_name.route_key}" %>

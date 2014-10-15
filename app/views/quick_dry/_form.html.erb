@@ -1,0 +1,26 @@
+<%= form_for(instance, url:{controller:"quick_dry", action:method}) do |f| %>
+	<% if instance.errors.any? %>
+		<div id="error_explanation">
+			<h2><%= pluralize(instance.errors.count, "error") %> prohibited this comment from being saved:</h2>
+
+			<ul>
+				<% instance.errors.full_messages.each do |message| %>
+					<li><%= message %></li>
+				<% end %>
+			</ul>
+		</div>
+	<% end %>
+
+	<% instance.attribute_names.each do |attr| %>
+		<% unless attr == "id" || attr == "created_at" || attr == "updated_at" %>
+			<div class="field">
+				<%= f.label attr.to_sym %><br>
+				<%= f.text_area attr.to_sym %>
+			</div>
+		<% end %>
+	<% end %>
+
+	<div class="actions">
+		<%= f.submit %>
+	</div>
+<% end %>

@@ -1,3 +1,5 @@
+<% model = @instances.class.superclass.to_s == "ActiveRecord::Relation" ? instances.model : instances.class %>
+
 <h1><%= model.model_name.human.pluralize %></h1>
 
 <table>

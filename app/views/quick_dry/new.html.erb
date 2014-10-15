@@ -1,0 +1,10 @@
+<%
+	instance = @instance
+	model = @instance.class
+%>
+
+<h1>New <%= model.model_name.singular_route_key %></h1>
+
+<%= render partial:'quick_dry/form',locals:{instance:instance, method:"create"} %>
+
+<%= link_to 'Back', "/#{model.model_name.route_key}" %>

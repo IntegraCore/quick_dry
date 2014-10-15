@@ -15,27 +15,54 @@ module QuickDry
 		end
 
 		def new
-			render json: "new"
+			@instance = get_model.new
+			render 'quick_dry/new'
 		end
 
 		def show
-			render json: "show"
+			@instance = get_model.find(params[:id])
+			render 'quick_dry/show'
 		end
 
 		def create
-			render json: "create"
+			@instance = get_model.new(instance_params)
+
+			if @instance.save
+				flash[:notice] = 'Comment was successfully created.'
+				render 'quick_dry/show'
+			else
+				render 'quick_dry/new'
+			end
 		end
 
 		def edit
-			render json: "edit"
+			@instance = get_model.find(params[:id])
+			render 'quick_dry/edit'
 		end
 
 		def update
-			render json: "update"
+			@instance = get_model.find(params[:id])
+
+			if @instance.update(instance_params)
+				flash[:notice] = "#{get_model.to_s} was successfully updated."
+				render 'quick_dry/show'
+			else
+				# flash[:error] = '#{get_model.to_s} could not be updated.'
+				render 'quick_dry/edit'
+			end
 		end
 
 		def destroy
-			render json: "destroy"
+			@instance = get_model.find(params[:id]).destroy
+			# flash[:notice] = "#{get_model.to_s} was successfully destroyed."
+			redirect_to "/#{get_model.model_name.route_key}", notice: "#{get_model.to_s} was successfully destroyed."
+		end
+
+		# Never trust parameters from the scary internet, only allow the white list through.
+		def instance_params
+			model = get_model
+			# get all params except for id, and the standard dates
+			params.require(model.model_name.singular_route_key.to_sym).permit(model.attribute_names.collect{|x| x.to_sym} - [:id,:created_at,:updated_at])
 		end
 
 		def append_route(proc:nil,&block)
@@ -119,20 +146,6 @@ module QuickDry
 			return {instances:instances,params:params}
 		end
 
-		# # GET /customer_orders/1
-		# # GET /customer_orders/1.json
-		# def show
-		# end
-
-		# # GET /customer_orders/new
-		# def new
-		# @customer_order = CustomerOrder.new
-		# end
-
-		# # GET /customer_orders/1/edit
-		# def edit
-		# end
-
 		# # POST /customer_orders
 		# # POST /customer_orders.json
 		# def create
@@ -178,11 +191,5 @@ module QuickDry
 		# def set_customer_order
 		# @customer_order = CustomerOrder.find(params[:id])
 		# end
-
-		# # Never trust parameters from the scary internet, only allow the white list through.
-		# def customer_order_params
-		# params.require(:customer_order).permit(:header, :details, :other, :order_number, :state, :status, :file_name)
-		# end
-
 	end
 end
