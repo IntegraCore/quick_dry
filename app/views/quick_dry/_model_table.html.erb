@@ -1,0 +1,29 @@
+<h1><%= model.model_name.human.pluralize %></h1>
+
+<table>
+	<thead>
+		<tr>
+			<% model.column_names.each do |name| %>
+				<th><%= model.human_attribute_name(name) %></th>
+			<% end %>
+			<th colspan="3"></th>
+		</tr>
+	</thead>
+	<tbody>
+		<% instances.each do |instance| %>
+			<tr>
+				<% instance.attribute_names.each do |attr| %>
+					<td><%= instance[attr.to_sym] %></td>
+				<% end %>
+				<td><%= link_to 'Show', "/#{model.model_name.route_key}/#{instance.id}" %></td>
+				<td><%= link_to 'Edit', "/#{model.model_name.route_key}/#{instance.id}/edit" %></td>
+				<td><%= link_to 'Destroy', "/#{model.model_name.route_key}/#{instance.id}", method: :delete, data: { confirm: 'Are you sure?' } %></td>
+
+			</tr>
+		<% end %>
+	</tbody>
+</table>
+
+<br>
+
+<%= link_to "New #{model.model_name.human}", "/#{model.model_name.route_key}/new" %>

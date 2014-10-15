@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
 
-  mount QuickDry::Engine => "/quick_dry"
+  # resources :posts
+  mount QuickDry::Engine => "/"
+
+  # resources :comments
+
 end
