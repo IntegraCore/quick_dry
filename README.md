@@ -1,6 +1,6 @@
 ## What is QuickDry?
 
-Have you ever went to the console to run a rails scaffold and wondered why 20 new files are required for every 1 new model?  If you have then, this Engine just might be fore you.  QuickDry is built on the assumption that you want to display your tables through a web interface, and that you want to interact with them all in the same way.  It takes and consolidates 14 of the 20 files produced with a scaffold into the QuickDry Engine.  So you only have to create a model and the controller and view is already taken care of in a much DRYer way.  This library is ideal for the developer that has an app dealing heavily with displaying data from their models and wants just the default rails views and controller methods.
+Have you ever went to the console to run a rails scaffold and wondered why 20 new files are required for every 1 new model?  If you have, then this Engine just might be for you.  QuickDry is built on the assumption that you want to display your tables through a web interface, and that you want to interact with them all in the same way.  It takes and consolidates 14 of the 20 files produced with a scaffold into the QuickDry Engine.  So you only have to create a model and the controller and view is already taken care of in a much DRYer way.  This library is ideal for the developer that has an app dealing heavily with displaying data from their models and wants just the default rails views and controller methods.
 
 ## Getting started
 
@@ -20,3 +20,15 @@ Add the following to your routes.rb file (put it at the top if you want QuickDry
 ```ruby
 mount RequestRefinery::Engine, at:'/'
 ```
+Now you can go ahead and add a model and try it out
+
+```console
+rails generate model test_model col1 col2 col3
+```
+Start the server
+
+```console
+rails server
+```
+
+Go to localhost:3000/test_models to perform crud operations on your table and rest content that you are not littering your project with redundant files.
