@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    quick_dry (0.0.1)
+    quick_dry (0.0.1.1)
       jquery-rails (~> 3)
       jquery-ui-rails
       rails (~> 4.0)
@@ -55,7 +55,7 @@ GEM
     json (1.8.1)
     mail (2.6.1)
       mime-types (>= 1.16, < 3)
-    mime-types (2.4.1)
+    mime-types (2.4.2)
     minitest (5.4.2)
     multi_json (1.10.1)
     rack (1.5.2)
