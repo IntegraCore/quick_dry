@@ -18,7 +18,7 @@ bundle install
 Add the following to your routes.rb file (put it at the top if you want QuickDry to handle all your models, or put it at the bottom to catch all requests not otherwise specified above it):
 
 ```ruby
-mount RequestRefinery::Engine, at:'/'
+mount QuickDry::Engine, at:'/'
 ```
 Now you can go ahead and add a model and try it out
 
