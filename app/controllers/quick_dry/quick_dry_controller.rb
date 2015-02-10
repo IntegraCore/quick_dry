@@ -1,68 +1,114 @@
 require_dependency "quick_dry/application_controller"
+require 'json'
 
 module QuickDry
 	class QuickDryController < ApplicationController
 		protect_from_forgery #unless Rails.env = "development"
 		before_action :instantiate_paths
 
-		# GET /customer_orders
-		# GET /customer_orders.json
+		# GET /table_name
+		# GET /table_name.json
 		def index
 			# results = get_paged_search_results(params,user:current_user)
 			# params = results[:params]
 			@instances = get_model.all
-			render 'quick_dry/index'
+			# render 'quick_dry/index'
+			respond_to do |format|
+				format.json { render json:@instances}
+				format.html { render 'quick_dry/index'}
+			end
 		end
 
+		# GET /table_name/new
 		def new
 			@instance = get_model.new
 			render 'quick_dry/new'
 		end
 
+		# GET /table_name/1
+		# GET /table_name/1.json
 		def show
 			@instance = get_model.find(params[:id])
-			render 'quick_dry/show'
-		end
 
-		def create
-			@instance = get_model.new(instance_params)
-
-			if @instance.save
-				flash[:notice] = 'Comment was successfully created.'
-				render 'quick_dry/show'
-			else
-				render 'quick_dry/new'
+			respond_to do |format|
+				format.json { render json:@instance}
+				format.html { render 'quick_dry/show'}
 			end
 		end
 
+		# POST /table_name
+		# POST /table_name.json
+		def create
+			@instance = get_model.new(instance_params)
+
+			respond_to do |format|
+				if @instance.save
+					flash[:notice] = "#{get_model.name} was successfully created."
+					format.html { render 'quick_dry/show' }
+					format.json { render json:@instance, status: :created, location: get_url }
+				else
+					format.html { render 'quick_dry/new' }
+					format.json { render json:@instance.errors, status: :unprocessable_entity }
+				end
+			end
+		end
+
+		# GET /table_name/1/edit
 		def edit
 			@instance = get_model.find(params[:id])
 			render 'quick_dry/edit'
 		end
 
+		# PATCH/PUT /table_name/1
+		# PATCH/PUT /table_name/1.json
 		def update
 			@instance = get_model.find(params[:id])
 
-			if @instance.update(instance_params)
-				flash[:notice] = "#{get_model.to_s} was successfully updated."
-				render 'quick_dry/show'
-			else
-				# flash[:error] = '#{get_model.to_s} could not be updated.'
-				render 'quick_dry/edit'
+			respond_to do |format|
+				if @instance.update(instance_params)
+					flash[:notice] = "#{get_model.name} was successfully updated."
+					format.html { render 'quick_dry/show' }
+					format.json { render json:@instance, status: :ok, location: get_url}
+				else
+					format.html { render 'quick_dry/edit' }
+					format.json { render json: @instance.errors, status: :unprocessable_entity}
+				end
 			end
 		end
 
+		# DELETE /table_name/1
+		# DELETE /table_name/1.json
 		def destroy
-			@instance = get_model.find(params[:id]).destroy
-			# flash[:notice] = "#{get_model.to_s} was successfully destroyed."
-			redirect_to "/#{get_model.model_name.route_key}", notice: "#{get_model.to_s} was successfully destroyed."
+			get_model.destroy(params[:id])
+			respond_to do |format|
+				format.html { redirect_to "/#{get_model.model_name.route_key}", notice: "#{get_model.name} was successfully destroyed." }
+				format.json { head :no_content }
+			end
+		end
+
+		def get_url target:@instance
+			target_url = "/unknown_route"
+			return target_url = "#{get_model.model_name.route_key}" if target.is_a? ActiveRecord::Relation
+			return target_url = "#{get_model.model_name.route_key}/#{target.id}" if target.is_a? ActiveRecord::Base
+			return target_url
 		end
 
 		# Never trust parameters from the scary internet, only allow the white list through.
 		def instance_params
 			model = get_model
 			# get all params except for id, and the standard dates
-			params.require(model.model_name.singular_route_key.to_sym).permit(model.attribute_names.collect{|x| x.to_sym} - [:id,:created_at,:updated_at])
+			respond_to do |format|
+				format.html {  }
+				format.json do
+					body = JSON.parse(request.body.read)
+					if body.is_a? Hash and body.has_key? model.model_name.singular_route_key
+						params.merge!(body)
+					elsif body.is_a? Hash
+						params[model.model_name.singular_route_key] = body 
+					end
+				end
+			end
+			return params.require(model.model_name.singular_route_key.to_sym).permit(model.attribute_names.collect{|x| x.to_sym} - [:id,:created_at,:updated_at])
 		end
 
 		def append_route(proc:nil,&block)
