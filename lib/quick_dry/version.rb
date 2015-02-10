@@ -1,3 +1,3 @@
 module QuickDry
-  VERSION = "0.0.1.1"
+  VERSION = "0.1.0.0" # added json functionality to all relevant standard controller methods
 end
