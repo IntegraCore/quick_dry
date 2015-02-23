@@ -5,6 +5,23 @@ module QuickDry
 	class QuickDryController < ApplicationController
 		protect_from_forgery #unless Rails.env = "development"
 		before_action :instantiate_paths
+		
+		# nasty hack until I can get an answer on the official way to remove the instance root keys in a list
+		def serialize stuff
+			if stuff.is_a? Array or stuff.is_a? ActiveRecord::Relation
+				json = render_to_string json:QuickDryArraySerializer.new(stuff, root:get_model.model_name.route_key )
+				hash = JSON.parse(json)
+				temp = []
+				if hash[get_model.model_name.route_key].first.has_key? get_model.model_name.route_key
+					hash[get_model.model_name.route_key].each{|x| temp << x[get_model.model_name.route_key]}
+					hash[get_model.model_name.route_key] = temp
+					return hash.to_json
+				end
+				return json
+			elsif stuff.is_a? get_model
+
+			end
+		end
 
 		# GET /table_name
 		# GET /table_name.json
@@ -14,7 +31,8 @@ module QuickDry
 			@instances = get_model.all
 			# render 'quick_dry/index'
 			respond_to do |format|
-				format.json { render json:@instances}
+				# format.json { render body:@instances.to_json, content_type:'application/json'} # using the json parameter nests objects inside of quick_dry keys
+				format.json { render json:serialize(@instances)}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
 				format.html { render 'quick_dry/index'}
 			end
 		end
@@ -101,10 +119,22 @@ module QuickDry
 				format.html {  }
 				format.json do
 					body = JSON.parse(request.body.read)
-					if body.is_a? Hash and body.has_key? model.model_name.singular_route_key
-						params.merge!(body)
-					elsif body.is_a? Hash
-						params[model.model_name.singular_route_key] = body 
+					if body.is_a? Hash
+						pascal = model.model_name.singular_route_key.camelize
+						camel = model.model_name.singular_route_key.camelize(:lower)
+						snake = model.model_name.singular_route_key
+						# instance_name 
+						if body.has_key? snake
+							params.merge!(body)
+						# instanceName
+						elsif body.has_key? camel
+							params.merge!({snake => body[camel]})
+						# InstanceName
+						elsif body.has_key? pascal
+							params.merge!({snake => body[pascal]})
+						else
+							params[model.model_name.singular_route_key] = body
+						end
 					end
 				end
 			end
@@ -191,6 +221,15 @@ module QuickDry
 			instances = model.paginate(page: params[:page], per_page: params[:per_page]).merge(result_set).order(updated_at: :desc)
 			return {instances:instances,params:params}
 		end
+
+		def default_serializer_options
+		  {
+		    root: get_model.model_name.route_key#,
+		    # model_class: get_model
+		  }
+		end
+
+
 
 		# # POST /customer_orders
 		# # POST /customer_orders.json
