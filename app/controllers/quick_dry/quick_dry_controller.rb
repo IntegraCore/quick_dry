@@ -1,68 +1,177 @@
 require_dependency "quick_dry/application_controller"
+require 'json'
 
 module QuickDry
 	class QuickDryController < ApplicationController
 		protect_from_forgery #unless Rails.env = "development"
 		before_action :instantiate_paths
+		
+		# nasty hack until I can get an answer on the official way to remove the instance root keys in a list
+		def serialize stuff
+			if stuff.is_a? Array or stuff.is_a? ActiveRecord::Relation
+				json = render_to_string json:QuickDryArraySerializer.new(stuff, root:get_model.model_name.route_key )
+				hash = JSON.parse(json)
+				temp = []
+				if hash[get_model.model_name.route_key].first.has_key? get_model.model_name.route_key
+					hash[get_model.model_name.route_key].each{|x| temp << x[get_model.model_name.route_key]}
+					hash[get_model.model_name.route_key] = temp
+					return hash.to_json
+				end
+				return json
+			elsif stuff.is_a? get_model
 
-		# GET /customer_orders
-		# GET /customer_orders.json
+			end
+		end
+
+		# GET /table_name
+		# GET /table_name.json
 		def index
 			# results = get_paged_search_results(params,user:current_user)
 			# params = results[:params]
-			@instances = get_model.all
-			render 'quick_dry/index'
-		end
+			#puts params.inspect
+			#turn param_name:begin and param_name:end into a range
+			
+			params.keys.select{|x| x =~ /^(.*)\:(.*)$/}.each do |x|
+				key = x.split(":").first
+				op = x.split(":").last
+				params[key] = [params["#{key}:begin"]..params["#{key}:end"]] if(op=="begin" && params["#{key}:end"])
+			end
 
+			#turn parameter ending in ! to a not statement
+			select_me_not = {}
+			params.keys.select{|x| x =~ /\!$/}.each do |param|
+				key = param.split("!").first
+				select_me_not[key] = params[param]
+			end
+			
+			#only include search params that are columns in the model
+			search_params = params.select{|x| get_model.column_names.index x}
+			likes = {}
+
+			#if the parameter value has one or more of the % character, make it a LIKE search
+			search_params.keys.select{|x| search_params[x].is_a?(String) && search_params[x] =~ /\%/}.each do |key|
+				likes[key] = search_params[key]
+				search_params.delete(key)
+			end
+			likes_array = likes.size > 0 ? [likes.keys.join(" like ? and ")+" like ?"] + likes.values : []
+			#puts likes_array.inspect
+
+
+			#puts params.inspect
+			#if(search_params.size > 0)
+				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
+			#else 
+				#@instances = get_model.where.not(select_me_not)
+			#end
+			# render 'quick_dry/index'
+			respond_to do |format|
+				# format.json { render body:@instances.to_json, content_type:'application/json'} # using the json parameter nests objects inside of quick_dry keys
+				format.json { render json:serialize(@instances)}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
+				format.html { render 'quick_dry/index'}
+			end
+		end
+		# GET /table_name/new
 		def new
 			@instance = get_model.new
 			render 'quick_dry/new'
 		end
 
+		# GET /table_name/1
+		# GET /table_name/1.json
 		def show
 			@instance = get_model.find(params[:id])
-			render 'quick_dry/show'
-		end
 
-		def create
-			@instance = get_model.new(instance_params)
-
-			if @instance.save
-				flash[:notice] = 'Comment was successfully created.'
-				render 'quick_dry/show'
-			else
-				render 'quick_dry/new'
+			respond_to do |format|
+				format.json { render json:@instance}
+				format.html { render 'quick_dry/show'}
 			end
 		end
 
+		# POST /table_name
+		# POST /table_name.json
+		def create
+			@instance = get_model.new(instance_params)
+
+			respond_to do |format|
+				if @instance.save
+					flash[:notice] = "#{get_model.name} was successfully created."
+					format.html { render 'quick_dry/show' }
+					format.json { render json:@instance, status: :created, location: get_url }
+				else
+					format.html { render 'quick_dry/new' }
+					format.json { render json:@instance.errors, status: :unprocessable_entity }
+				end
+			end
+		end
+
+		# GET /table_name/1/edit
 		def edit
 			@instance = get_model.find(params[:id])
 			render 'quick_dry/edit'
 		end
 
+		# PATCH/PUT /table_name/1
+		# PATCH/PUT /table_name/1.json
 		def update
 			@instance = get_model.find(params[:id])
 
-			if @instance.update(instance_params)
-				flash[:notice] = "#{get_model.to_s} was successfully updated."
-				render 'quick_dry/show'
-			else
-				# flash[:error] = '#{get_model.to_s} could not be updated.'
-				render 'quick_dry/edit'
+			respond_to do |format|
+				if @instance.update(instance_params)
+					flash[:notice] = "#{get_model.name} was successfully updated."
+					format.html { render 'quick_dry/show' }
+					format.json { render json:@instance, status: :ok, location: get_url}
+				else
+					format.html { render 'quick_dry/edit' }
+					format.json { render json: @instance.errors, status: :unprocessable_entity}
+				end
 			end
 		end
 
+		# DELETE /table_name/1
+		# DELETE /table_name/1.json
 		def destroy
-			@instance = get_model.find(params[:id]).destroy
-			# flash[:notice] = "#{get_model.to_s} was successfully destroyed."
-			redirect_to "/#{get_model.model_name.route_key}", notice: "#{get_model.to_s} was successfully destroyed."
+			get_model.destroy(params[:id])
+			respond_to do |format|
+				format.html { redirect_to "/#{get_model.model_name.route_key}", notice: "#{get_model.name} was successfully destroyed." }
+				format.json { head :no_content }
+			end
+		end
+
+		def get_url target:@instance
+			target_url = "/unknown_route"
+			return target_url = "#{get_model.model_name.route_key}" if target.is_a? ActiveRecord::Relation
+			return target_url = "#{get_model.model_name.route_key}/#{target.id}" if target.is_a? ActiveRecord::Base
+			return target_url
 		end
 
 		# Never trust parameters from the scary internet, only allow the white list through.
 		def instance_params
 			model = get_model
 			# get all params except for id, and the standard dates
-			params.require(model.model_name.singular_route_key.to_sym).permit(model.attribute_names.collect{|x| x.to_sym} - [:id,:created_at,:updated_at])
+			respond_to do |format|
+				format.html {  }
+				format.json do
+					body = JSON.parse(request.body.read)
+					if body.is_a? Hash
+						pascal = model.model_name.singular_route_key.camelize
+						camel = model.model_name.singular_route_key.camelize(:lower)
+						snake = model.model_name.singular_route_key
+						# instance_name 
+						if body.has_key? snake
+							params.merge!(body)
+						# instanceName
+						elsif body.has_key? camel
+							params.merge!({snake => body[camel]})
+						# InstanceName
+						elsif body.has_key? pascal
+							params.merge!({snake => body[pascal]})
+						else
+							params[model.model_name.singular_route_key] = body
+						end
+					end
+				end
+			end
+			return params.require(model.model_name.singular_route_key.to_sym).permit(model.attribute_names.collect{|x| x.to_sym} - [:id,:created_at,:updated_at])
 		end
 
 		def append_route(proc:nil,&block)
@@ -145,6 +254,15 @@ module QuickDry
 			instances = model.paginate(page: params[:page], per_page: params[:per_page]).merge(result_set).order(updated_at: :desc)
 			return {instances:instances,params:params}
 		end
+
+		def default_serializer_options
+		  {
+		    root: get_model.model_name.route_key#,
+		    # model_class: get_model
+		  }
+		end
+
+
 
 		# # POST /customer_orders
 		# # POST /customer_orders.json
