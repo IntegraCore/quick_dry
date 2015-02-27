@@ -19,7 +19,6 @@ module QuickDry
 				end
 				return json
 			elsif stuff.is_a? get_model
-
 			end
 		end
 
@@ -28,7 +27,41 @@ module QuickDry
 		def index
 			# results = get_paged_search_results(params,user:current_user)
 			# params = results[:params]
-			@instances = get_model.all
+			#puts params.inspect
+			#turn param_name:begin and param_name:end into a range
+			
+			params.keys.select{|x| x =~ /^(.*)\:(.*)$/}.each do |x|
+				key = x.split(":").first
+				op = x.split(":").last
+				params[key] = [params["#{key}:begin"]..params["#{key}:end"]] if(op=="begin" && params["#{key}:end"])
+			end
+
+			#turn parameter ending in ! to a not statement
+			select_me_not = {}
+			params.keys.select{|x| x =~ /\!$/}.each do |param|
+				key = param.split("!").first
+				select_me_not[key] = params[param]
+			end
+			
+			#only include search params that are columns in the model
+			search_params = params.select{|x| get_model.column_names.index x}
+			likes = {}
+
+			#if the parameter value has one or more of the % character, make it a LIKE search
+			search_params.keys.select{|x| search_params[x].is_a?(String) && search_params[x] =~ /\%/}.each do |key|
+				likes[key] = search_params[key]
+				search_params.delete(key)
+			end
+			likes_array = likes.size > 0 ? [likes.keys.join(" like ? and ")+" like ?"] + likes.values : []
+			#puts likes_array.inspect
+
+
+			#puts params.inspect
+			#if(search_params.size > 0)
+				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
+			#else 
+				#@instances = get_model.where.not(select_me_not)
+			#end
 			# render 'quick_dry/index'
 			respond_to do |format|
 				# format.json { render body:@instances.to_json, content_type:'application/json'} # using the json parameter nests objects inside of quick_dry keys
