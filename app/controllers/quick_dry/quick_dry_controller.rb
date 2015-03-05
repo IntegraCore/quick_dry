@@ -58,7 +58,11 @@ module QuickDry
 
 			#puts params.inspect
 			#if(search_params.size > 0)
+			if params['_limit'].to_i < 1
 				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
+			else
+				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not).limit(params['_limit'].to_i)
+			end
 			#else 
 				#@instances = get_model.where.not(select_me_not)
 			#end
@@ -82,7 +86,8 @@ module QuickDry
 			@instance = get_model.find(params[:id])
 
 			respond_to do |format|
-				format.json { render json:@instance}
+				format.json { 
+					render json:@instance, root:get_model.model_name.route_key}
 				format.html { render 'quick_dry/show'}
 			end
 		end
