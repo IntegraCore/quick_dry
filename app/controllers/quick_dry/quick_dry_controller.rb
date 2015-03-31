@@ -56,7 +56,7 @@ module QuickDry
 
 			# Limit functionality
 			if params['_limit'].to_i < 1
-				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
+				@instances = get_model.includes(params['_includes']).where(search_params).where(likes_array).where.not(select_me_not)
 			else
 				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not).limit(params['_limit'].to_i)
 			end
@@ -77,7 +77,7 @@ module QuickDry
 			# render 'quick_dry/index'
 			respond_to do |format|
 				# format.json { render body:@instances.to_json, content_type:'application/json'} # using the json parameter nests objects inside of quick_dry keys
-				format.json { render json:@instances}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
+				format.json { render json:@instances, include: params['_includes']}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
 				format.html { render 'quick_dry/index'}
 			end
 		end
