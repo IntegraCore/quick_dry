@@ -7,20 +7,20 @@ module QuickDry
 		before_action :instantiate_paths
 		
 		# nasty hack until I can get an answer on the official way to remove the instance root keys in a list
-		def serialize stuff
-			if stuff.is_a? Array or stuff.is_a? ActiveRecord::Relation
-				json = render_to_string json:QuickDryArraySerializer.new(stuff, root:get_model.model_name.route_key )
-				hash = JSON.parse(json)
-				temp = []
-				if hash[get_model.model_name.route_key].first.has_key? get_model.model_name.route_key
-					hash[get_model.model_name.route_key].each{|x| temp << x[get_model.model_name.route_key]}
-					hash[get_model.model_name.route_key] = temp
-					return hash.to_json
-				end
-				return json
-			elsif stuff.is_a? get_model
-			end
-		end
+		# def serialize stuff
+		# 	if stuff.is_a? Array or stuff.is_a? ActiveRecord::Relation
+		# 		json = render_to_string json:QuickDryArraySerializer.new(stuff, root:get_model.model_name.route_key )
+		# 		hash = JSON.parse(json)
+		# 		temp = []
+		# 		if hash[get_model.model_name.route_key].first.has_key? get_model.model_name.route_key
+		# 			hash[get_model.model_name.route_key].each{|x| temp << x[get_model.model_name.route_key]}
+		# 			hash[get_model.model_name.route_key] = temp
+		# 			return hash.to_json
+		# 		end unless hash[get_model.model_name.route_key].count < 1
+		# 		return json
+		# 	elsif stuff.is_a? get_model
+		# 	end
+		# end
 
 		# GET /table_name
 		# GET /table_name.json
@@ -29,7 +29,7 @@ module QuickDry
 			# params = results[:params]
 			#puts params.inspect
 			#turn param_name:begin and param_name:end into a range
-			
+
 			params.keys.select{|x| x =~ /^(.*)\:(.*)$/}.each do |x|
 				key = x.split(":").first
 				op = x.split(":").last
@@ -44,7 +44,7 @@ module QuickDry
 			end
 			
 			#only include search params that are columns in the model
-			search_params = params.select{|x| get_model.column_names.index x}
+			search_params = params.select{|k,v| get_model.column_names.include? k}.to_h #.permit(get_model.attribute_names.collect{|x| x.to_sym})	#
 			likes = {}
 
 			#if the parameter value has one or more of the % character, make it a LIKE search
@@ -53,23 +53,31 @@ module QuickDry
 				search_params.delete(key)
 			end
 			likes_array = likes.size > 0 ? [likes.keys.join(" like ? and ")+" like ?"] + likes.values : []
-			#puts likes_array.inspect
 
-
-			#puts params.inspect
-			#if(search_params.size > 0)
+			# Limit functionality
 			if params['_limit'].to_i < 1
 				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
 			else
 				@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not).limit(params['_limit'].to_i)
 			end
+
+			# if params['_order_by'].to_i < 1
+			# 	@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not)
+			# else
+			# 	@instances = get_model.where(search_params).where(likes_array).where.not(select_me_not).limit(params['_limit'].to_i)
+			# end
+
+
+
+
+
 			#else 
 				#@instances = get_model.where.not(select_me_not)
 			#end
 			# render 'quick_dry/index'
 			respond_to do |format|
 				# format.json { render body:@instances.to_json, content_type:'application/json'} # using the json parameter nests objects inside of quick_dry keys
-				format.json { render json:serialize(@instances)}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
+				format.json { render json:@instances}#, each_serializer: QuickDrySerializer}# serializer:QuickDryArraySerializer}
 				format.html { render 'quick_dry/index'}
 			end
 		end
@@ -156,7 +164,7 @@ module QuickDry
 			respond_to do |format|
 				format.html {  }
 				format.json do
-					body = JSON.parse(request.body.read)
+					body = JSON.parse(request.body.read) rescue nil
 					if body.is_a? Hash
 						pascal = model.model_name.singular_route_key.camelize
 						camel = model.model_name.singular_route_key.camelize(:lower)
